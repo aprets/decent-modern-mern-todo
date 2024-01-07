@@ -1,9 +1,19 @@
 import { zValidator } from '@hono/zod-validator';
 import { addHours, getUnixTime } from 'date-fns';
 import { Hono } from 'hono';
+import { HTTPException } from 'hono/http-exception';
 import { jwt, sign } from 'hono/jwt';
+import { ObjectId } from 'mongodb';
 import { z } from 'zod';
-import { createTask, getAllTasksForUser, getTaskByIds, registerUser, updateTask, validateUserPassword } from './db';
+import {
+  createTask,
+  deleteTask,
+  getAllTasksForUser,
+  getTask,
+  registerUser,
+  updateTask,
+  validateUserPassword,
+} from './db';
 import { taskDataSchema, userDataSchema } from './schemas';
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -17,7 +27,7 @@ const sessionSchema = z.object({
 const app = new Hono<{
   Variables: {
     session: z.infer<typeof sessionSchema>;
-    task: Awaited<ReturnType<typeof getTaskByIds>>;
+    task: Awaited<ReturnType<typeof getTask>>;
   };
 }>()
 
@@ -51,23 +61,45 @@ const app = new Hono<{
     },
   )
 
-  .use('/tasks/:id', async (c, next) => {
-    const taskId = c.req.param('id');
-    const userId = c.get('session').id;
-    const task = await getTaskByIds(userId, taskId);
-    c.set('task', task);
-    await next();
-  })
-
   .post('/tasks', zValidator('json', taskDataSchema), async (c) => {
     await createTask(c.get('session').id, c.req.valid('json'));
     return c.json({ success: true });
   })
+
+  .use('/tasks/:id', async (c, next) => {
+    const taskId = c.req.param('id');
+    const userId = c.get('session').id;
+    if (!ObjectId.isValid(taskId)) throw new HTTPException(400, { message: 'Invalid task ID' });
+    const task = await getTask(userId, taskId);
+    c.set('task', task);
+    await next();
+  })
+
+  .get('/tasks/:id', (c) => c.json(c.get('task')))
+  .get(
+    '/tasks',
+    zValidator(
+      'query',
+      z.object({
+        page: z.string().regex(/^\d+$/).transform(Number),
+        limit: z.string().regex(/^\d+$/).transform(Number),
+      }),
+    ),
+    async (c) => {
+      const { page, limit } = c.req.valid('query');
+      const tasks = await getAllTasksForUser(c.get('session').id, page, limit);
+      return c.json(tasks);
+    },
+  )
+
   .put('/tasks/:id', zValidator('json', taskDataSchema.partial()), async (c) => {
     await updateTask(c.get('session').id, c.req.param('id'), c.req.valid('json'));
     return c.json({ success: true });
   })
-  .get('/tasks/:id', (c) => c.json(c.get('task')))
-  .get('/tasks', async (c) => c.json(await getAllTasksForUser(c.get('session').id)));
 
-export default app;
+  .delete('/tasks/:id', async (c) => {
+    await deleteTask(c.get('session').id, c.req.param('id'));
+    return c.json({ success: true });
+  });
+
+export type App = typeof app;

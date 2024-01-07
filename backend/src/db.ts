@@ -21,7 +21,9 @@ async function getDb() {
 
 const db = await getDb();
 export const usersCollection = db.collection<User>('users');
+await usersCollection.createIndex({ username: 1 }, { unique: true });
 export const tasksCollection = db.collection<InternalTask>('tasks');
+await tasksCollection.createIndex({ userId: 1, _id: 1 }, { unique: true });
 
 export const registerUser = async (username: string, rawPassword: string) => {
   const existingUser = await usersCollection.findOne({ username: username }, { projection: { _id: 1 } });
@@ -48,11 +50,7 @@ export const createTask = async (userId: string, task: Task) => {
   await tasksCollection.insertOne({ userId: new ObjectId(userId), ...task });
 };
 
-export const updateTask = async (userId: string, taskId: string, task: Partial<Task>) => {
-  await tasksCollection.updateOne({ _id: new ObjectId(taskId), userId: new ObjectId(userId) }, { $set: task });
-};
-
-export const getTaskByIds = async (userId: string, taskId: string) => {
+export const getTask = async (userId: string, taskId: string) => {
   const task = await tasksCollection.findOne(
     { _id: new ObjectId(taskId), userId: new ObjectId(userId) },
     { projection: { _id: 1, text: 1, priority: 1, status: 1 } },
@@ -62,9 +60,20 @@ export const getTaskByIds = async (userId: string, taskId: string) => {
   return task;
 };
 
-export const getAllTasksForUser = async (userId: string) => {
+export const getAllTasksForUser = async (userId: string, page: number = 1, pageSize: number = Infinity) => {
+  const skip = (page - 1) * pageSize;
   const tasks = await tasksCollection
     .find({ userId: new ObjectId(userId) }, { projection: { _id: 1, text: 1, priority: 1, status: 1 } })
+    .skip(skip)
+    .limit(pageSize)
     .toArray();
   return tasks;
+};
+
+export const updateTask = async (userId: string, taskId: string, task: Partial<Task>) => {
+  await tasksCollection.updateOne({ _id: new ObjectId(taskId), userId: new ObjectId(userId) }, { $set: task });
+};
+
+export const deleteTask = async (userId: string, taskId: string) => {
+  await tasksCollection.deleteOne({ _id: new ObjectId(taskId), userId: new ObjectId(userId) });
 };
