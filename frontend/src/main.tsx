@@ -1,10 +1,25 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { WrappedApp } from './App';
-import './index.css';
+import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 
-ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+import './index.css';
+import { Home } from './pages/home';
+import { NotFound } from './pages/not-found';
+
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <Home />,
+  },
+  {
+    path: '*',
+    element: <NotFound />,
+  },
+]);
+
+// eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- must have faith here
+ReactDOM.createRoot(document.querySelector('#root')!).render(
   <React.StrictMode>
-    <WrappedApp />
-  </React.StrictMode>
+    <RouterProvider router={router} />
+  </React.StrictMode>,
 );
