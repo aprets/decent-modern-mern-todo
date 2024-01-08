@@ -1,5 +1,4 @@
 // This is a workaround for https://github.com/eslint/eslint/issues/3458
-// eslint-disable-next-line import/no-extraneous-dependencies
 require('@aprets/config/patch/modern-name-resolution');
 
 module.exports = {
@@ -7,4 +6,5 @@ module.exports = {
   parserOptions: {
     project: `${__dirname}/tsconfig.json`,
   },
+  ignorePatterns: ['.eslintrc.cjs', 'tsconfig.json', 'tailwind.config.js', 'postcss.config.js'],
 };

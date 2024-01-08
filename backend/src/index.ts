@@ -22,6 +22,7 @@ if (!JWT_SECRET) throw new Error('JWT_SECRET is not defined');
 const sessionSchema = z.object({
   exp: z.number(),
   id: z.string(),
+  username: z.string(),
 });
 
 const app = new Hono<{
@@ -43,11 +44,17 @@ const app = new Hono<{
     const token = await sign(
       {
         id,
+        username,
         exp: getUnixTime(addHours(new Date(), 8)),
-      },
+      } satisfies z.infer<typeof sessionSchema>,
       JWT_SECRET,
     );
     return c.json(token);
+  })
+
+  .get('/me', async (c) => {
+    const user = await c.get('session');
+    return c.json(user);
   })
 
   .use(
@@ -103,3 +110,4 @@ const app = new Hono<{
   });
 
 export type App = typeof app;
+export default app;

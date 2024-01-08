@@ -37,11 +37,11 @@ export const registerUser = async (username: string, rawPassword: string) => {
 export const validateUserPassword = async (username: string, rawPassword: string) => {
   const user = await usersCollection.findOne({ username: username }, { projection: { _id: 1, password: 1 } });
   if (!user) {
-    throw new HTTPException(401, { message: 'Invalid credentials' });
+    throw new HTTPException(400, { message: 'Invalid credentials' });
   }
 
   const passwordMatch = await Bun.password.verify(rawPassword, user.password);
-  if (!passwordMatch) throw new HTTPException(401, { message: 'Invalid credentials' });
+  if (!passwordMatch) throw new HTTPException(400, { message: 'Invalid credentials' });
 
   return user._id.toString();
 };
